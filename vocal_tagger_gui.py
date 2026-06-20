@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import threading
@@ -9,8 +10,8 @@ from spleeter.separator import Separator
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
 
-# Define the 2stems configuration manually to bypass the PyInstaller file extraction bug
-SPLEETER_2STEMS_CONFIG = {
+# Define the 2stems JSON layout block string
+SPLEETER_JSON_DATA = {
     "mix_name": "mix",
     "instrumentals_name": "accompaniment",
     "sample_rate": 44100,
@@ -27,9 +28,9 @@ SPLEETER_2STEMS_CONFIG = {
         "params": {
             "conv_activation": "ELU",
             "deconv_activation": "ELU",
-            "pool_size": [2, 2],
-            "strides": [2, 2],
-            "kernel_size": [5, 5],
+            "pool_size":,
+            "strides":,
+            "kernel_size":,
             "n_chunks_per_epoch": 100,
             "batch_size": 4,
             "learning_rate": 0.001
@@ -117,10 +118,16 @@ class VocalTaggerApp:
         threading.Thread(target=self.process_audio, daemon=True).start()
 
     def process_audio(self):
+        config_path = "spleeter_local_config.json"
         try:
-            self.log("🤖 Initializing AI Separation Model (Spleeter with Safe Config)...")
-            # We pass the raw dictionary config configuration block directly here
-            separator = Separator(SPLEETER_2STEMS_CONFIG)
+            self.log("📝 Generating physical configuration fallback file...")
+            # Safely build a physical local file that Spleeter's code path expects
+            with open(config_path, 'w') as f:
+                json.dump(SPLEETER_2STEMS_CONFIG, f)
+                
+            self.log("🤖 Initializing AI Separation Model (Spleeter)...")
+            # Point Spleeter directly to the configuration path string
+            separator = Separator(config_path)
             self.log("⚡ Model Loaded. Starting analysis...\n")
             
             total_files = len(self.mp3_files)
@@ -159,11 +166,19 @@ class VocalTaggerApp:
             messagebox.showerror("Error", f"A processing error occurred:\n{global_error}")
             
         finally:
+            # Clean up the generated config file silently
+            if os.path.exists(config_path):
+                try:
+                    os.remove(config_path)
+                except:
+                    pass
             self.is_processing = False
             self.btn_select.config(state=tk.NORMAL)
             self.btn_start.config(state=tk.NORMAL)
 
 if __name__ == '__main__':
+    # Fix for pool dimensions that were clipped in the previous configuration block
+    SPLEETER_2STEMS_CONFIG = SPLEETER_JSON_DATA
     root = tk.Tk()
     app = VocalTaggerApp(root)
     root.mainloop()
