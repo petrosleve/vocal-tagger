@@ -9,6 +9,34 @@ from spleeter.separator import Separator
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
 
+# Define the 2stems configuration manually to bypass the PyInstaller file extraction bug
+SPLEETER_2STEMS_CONFIG = {
+    "mix_name": "mix",
+    "instrumentals_name": "accompaniment",
+    "sample_rate": 44100,
+    "frame_length": 4096,
+    "frame_step": 1024,
+    "window_exponent": 1.0,
+    "stft_backend": "tensorflow",
+    "model_dir": "pretrained_models",
+    "instruments": ["vocals", "accompaniment"],
+    "train_csv": None,
+    "validation_csv": None,
+    "model": {
+        "type": "unet.unet",
+        "params": {
+            "conv_activation": "ELU",
+            "deconv_activation": "ELU",
+            "pool_size": [2, 2],
+            "strides": [2, 2],
+            "kernel_size": [5, 5],
+            "n_chunks_per_epoch": 100,
+            "batch_size": 4,
+            "learning_rate": 0.001
+        }
+    }
+}
+
 class VocalTaggerApp:
     def __init__(self, root):
         self.root = root
@@ -21,7 +49,6 @@ class VocalTaggerApp:
         self.is_processing = False
         
         # --- UI LAYOUT ---
-        # Top Frame for Folder Selection
         top_frame = ttk.Frame(root, padding="10")
         top_frame.pack(fill=tk.X)
         
@@ -31,11 +58,9 @@ class VocalTaggerApp:
         self.lbl_folder = ttk.Label(top_frame, text="No folder selected", wraplength=450, foreground="gray")
         self.lbl_folder.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
-        # Middle Frame for File Status List
         mid_frame = ttk.LabelFrame(root, text=" Target Tracks ", padding="10")
         mid_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         
-        # Scrollable Text Console
         self.txt_console = tk.Text(mid_frame, wrap=tk.WORD, height=12, state=tk.DISABLED, bg="#fbfbfb")
         self.txt_console.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
@@ -43,7 +68,6 @@ class VocalTaggerApp:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.txt_console.config(yscrollcommand=scrollbar.set)
         
-        # Bottom Frame for Actions and Progress Bar
         bot_frame = ttk.Frame(root, padding="10")
         bot_frame.pack(fill=tk.X)
         
@@ -54,14 +78,12 @@ class VocalTaggerApp:
         self.btn_start.pack(side=tk.RIGHT)
 
     def log(self, text):
-        """Helper to safely print logs to the UI window."""
         self.txt_console.config(state=tk.NORMAL)
         self.txt_console.insert(tk.END, text + "\n")
         self.txt_console.see(tk.END)
         self.txt_console.config(state=tk.DISABLED)
 
     def browse_folder(self):
-        """Opens folder dialog and finds target MP3 files."""
         if self.is_processing:
             return
             
@@ -72,10 +94,8 @@ class VocalTaggerApp:
         self.selected_folder = folder
         self.lbl_folder.config(text=folder, foreground="black")
         
-        # Scan folder for MP3 files
         self.mp3_files = [f for f in os.listdir(folder) if f.lower().endswith('.mp3')]
         
-        # Update display
         self.txt_console.config(state=tk.NORMAL)
         self.txt_console.delete('1.0', tk.END)
         self.txt_console.config(state=tk.DISABLED)
@@ -88,21 +108,19 @@ class VocalTaggerApp:
             self.progress['value'] = 0
         else:
             self.btn_start.config(state=tk.DISABLED)
-            self.log("⚠️ No MP3 files found in this folder. Please select a different location.")
+            self.log("⚠️ No MP3 files found in this folder.")
 
     def start_thread(self):
-        """Runs the long audio analysis inside a background thread so the GUI doesn't freeze."""
         self.is_processing = True
         self.btn_select.config(state=tk.DISABLED)
         self.btn_start.config(state=tk.DISABLED)
-        
-        # Execute processing thread
         threading.Thread(target=self.process_audio, daemon=True).start()
 
     def process_audio(self):
         try:
-            self.log("🤖 Initializing AI Separation Model (Spleeter)...")
-            separator = Separator('spleeter:2stems')
+            self.log("🤖 Initializing AI Separation Model (Spleeter with Safe Config)...")
+            # We pass the raw dictionary config configuration block directly here
+            separator = Separator(SPLEETER_2STEMS_CONFIG)
             self.log("⚡ Model Loaded. Starting analysis...\n")
             
             total_files = len(self.mp3_files)
@@ -112,18 +130,15 @@ class VocalTaggerApp:
                 self.log(f"[{index}/{total_files}] Processing: {file_name}")
                 
                 try:
-                    # AI virtual analysis of the vocal and instrumental tracks
                     prediction = separator.separate(file_path)
                     vocals_data = prediction['vocals']
                     vocal_energy = vocals_data.mean()
                     
-                    # Decide description tag based on vocal presence
                     if vocal_energy > 0.005:
                         tag_result = "With Vocals"
                     else:
                         tag_result = "Instrumental"
                     
-                    # Update file metadata directly in place
                     audio = MP3(file_path, ID3=EasyID3)
                     audio['comment'] = tag_result
                     audio.save()
@@ -132,7 +147,6 @@ class VocalTaggerApp:
                 except Exception as e:
                     self.log(f"   ↳ ❌ Error processing this track: {e}\n")
                 
-                # Update visual progress bar
                 progress_percent = (index / total_files) * 100
                 self.progress['value'] = progress_percent
                 self.root.update_idletasks()
@@ -145,7 +159,6 @@ class VocalTaggerApp:
             messagebox.showerror("Error", f"A processing error occurred:\n{global_error}")
             
         finally:
-            # Restore UI buttons back to normal
             self.is_processing = False
             self.btn_select.config(state=tk.NORMAL)
             self.btn_start.config(state=tk.NORMAL)
