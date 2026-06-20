@@ -10,7 +10,7 @@ from spleeter.separator import Separator
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
 
-# Define the 2stems JSON layout block string with correct numerical array parameters
+# Define the 2stems JSON layout block string with absolute numerical array parameters filled in
 SPLEETER_JSON_DATA = {
     "mix_name": "mix",
     "instrumentals_name": "accompaniment",
