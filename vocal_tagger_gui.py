@@ -1,5 +1,6 @@
 import os
 import sys
+import urllib.request
 import json
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -9,34 +10,6 @@ import threading
 from spleeter.separator import Separator
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
-
-# Define the 2stems JSON layout block string with absolute numerical array parameters filled in
-SPLEETER_JSON_DATA = {
-    "mix_name": "mix",
-    "instrumentals_name": "accompaniment",
-    "sample_rate": 44100,
-    "frame_length": 4096,
-    "frame_step": 1024,
-    "window_exponent": 1.0,
-    "stft_backend": "tensorflow",
-    "model_dir": "pretrained_models",
-    "instruments": ["vocals", "accompaniment"],
-    "train_csv": None,
-    "validation_csv": None,
-    "model": {
-        "type": "unet.unet",
-        "params": {
-            "conv_activation": "ELU",
-            "deconv_activation": "ELU",
-            "pool_size":,
-            "strides":,
-            "kernel_size":,
-            "n_chunks_per_epoch": 100,
-            "batch_size": 4,
-            "learning_rate": 0.001
-        }
-    }
-}
 
 class VocalTaggerApp:
     def __init__(self, root):
@@ -120,9 +93,10 @@ class VocalTaggerApp:
     def process_audio(self):
         config_path = "spleeter_local_config.json"
         try:
-            self.log("📝 Generating local system config file...")
-            with open(config_path, 'w') as f:
-                json.dump(SPLEETER_JSON_DATA, f)
+            self.log("🌐 Downloading official Spleeter core structural configuration layout...")
+            # Download the unedited, official template configuration file directly into the local directory
+            url = "https://githubusercontent.com"
+            urllib.request.urlretrieve(url, config_path)
                 
             self.log("🤖 Initializing AI Separation Model (Spleeter)...")
             separator = Separator(config_path)
