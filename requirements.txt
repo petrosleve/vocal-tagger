@@ -1,4 +1,4 @@
-numpy<1.19.0
+numpy>=1.19.2,<1.20.0
 spleeter==2.3.0
 mutagen
 pyinstaller==5.13.2
