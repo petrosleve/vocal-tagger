@@ -1,3 +1,4 @@
-spleeter
+numpy<1.19.0
+spleeter==2.3.0
 mutagen
-pyinstaller
+pyinstaller==5.13.2
