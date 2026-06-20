@@ -10,7 +10,7 @@ from spleeter.separator import Separator
 from mutagen.easyid3 import EasyID3
 from mutagen.mp3 import MP3
 
-# Define the 2stems JSON layout block string
+# Define the 2stems JSON layout block string with correct numerical array parameters
 SPLEETER_JSON_DATA = {
     "mix_name": "mix",
     "instrumentals_name": "accompaniment",
@@ -120,13 +120,11 @@ class VocalTaggerApp:
     def process_audio(self):
         config_path = "spleeter_local_config.json"
         try:
-            self.log("📝 Generating physical configuration fallback file...")
-            # Safely build a physical local file that Spleeter's code path expects
+            self.log("📝 Generating local system config file...")
             with open(config_path, 'w') as f:
-                json.dump(SPLEETER_2STEMS_CONFIG, f)
+                json.dump(SPLEETER_JSON_DATA, f)
                 
             self.log("🤖 Initializing AI Separation Model (Spleeter)...")
-            # Point Spleeter directly to the configuration path string
             separator = Separator(config_path)
             self.log("⚡ Model Loaded. Starting analysis...\n")
             
@@ -166,7 +164,6 @@ class VocalTaggerApp:
             messagebox.showerror("Error", f"A processing error occurred:\n{global_error}")
             
         finally:
-            # Clean up the generated config file silently
             if os.path.exists(config_path):
                 try:
                     os.remove(config_path)
@@ -177,8 +174,6 @@ class VocalTaggerApp:
             self.btn_start.config(state=tk.NORMAL)
 
 if __name__ == '__main__':
-    # Fix for pool dimensions that were clipped in the previous configuration block
-    SPLEETER_2STEMS_CONFIG = SPLEETER_JSON_DATA
     root = tk.Tk()
     app = VocalTaggerApp(root)
     root.mainloop()
