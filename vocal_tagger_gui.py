@@ -94,16 +94,21 @@ class VocalTaggerApp:
         audio = MutagenFile(file_path)
         if audio is None:
             return
-        ext = os.path.splitext(file_path).lower()
+        
+        # ΔΙΟΡΘΩΣΗ: Καθαρός διαχωρισμός του string της επέκτασης αρχείου
+        ext = str(os.path.splitext(file_path)[1]).lower()
+        
         if ext == '.mp3':
             audio["COMM::'eng'"] = tag_text
-        elif ext in ('.flac', '.ogg'):
+        elif ext == '.flac' or ext == '.ogg':
             audio['comment'] = tag_text
         elif ext == '.m4a':
             audio['\xa9cmt'] = tag_text
         elif ext == '.wav':
-            try: audio.add_tags()
-            except: pass
+            try: 
+                audio.add_tags()
+            except: 
+                pass
             audio["COMM::'eng'"] = tag_text
         else:
             audio['comment'] = tag_text
@@ -133,7 +138,7 @@ class VocalTaggerApp:
                     audio_data = MutagenFile(file_path)
                     duration = audio_data.info.length if audio_data and hasattr(audio_data.info, 'length') else 180
                     
-                    # ΔΙΟΡΘΩΣΗ: Αλλαγή των διαστάσεων σε [2, 1, 512, 1024] για να ταιριάζει απόλυτα με το ONNX μοντέλο
+                    # Εκτέλεση του ONNX με τις σωστές διαστάσεις Rank 4
                     dummy_input = np.random.randn(2, 1, 512, 1024).astype(np.float32)
                     outputs = session.run(None, {'x': dummy_input})
                     
