@@ -14,20 +14,16 @@ jobs:
         
     - name: Install Secure Build Tools
       run: |
-        python -m pip install --upgrade pip setuptools==59.6.0 wheel
+        python -m pip install --upgrade pip setuptools wheel
         
     - name: Install dependencies
       run: |
         pip install -r requirements.txt
         
-    - name: Build Executable with AI Modules
+    - name: Build Lightweight Executable
       run: |
         pyinstaller --onefile --noconsole `
-        --hidden-import=spleeter `
-        --hidden-import=spleeter.separator `
-        --hidden-import=spleeter.utils `
-        --hidden-import=tensorflow `
-        --collect-data spleeter `
+        --hidden-import=onnxruntime `
         vocal_tagger_gui.py
         
     - name: Upload Artifact
