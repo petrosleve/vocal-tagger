@@ -1,6 +1,5 @@
 import os
 import sys
-import urllib.request
 import json
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -8,18 +7,48 @@ import threading
 
 # Import the core audio processing tools
 from spleeter.separator import Separator
-from mutagen.easyid3 import EasyID3
-from mutagen.mp3 import MP3
+from mutagen import File as MutagenFile
+
+# Explicitly defining configuration as a safe flat string to prevent any parsing bugs
+SPLEETER_CONFIG_STRING = """{
+    "mix_name": "mix",
+    "instrumentals_name": "accompaniment",
+    "sample_rate": 44100,
+    "frame_length": 4096,
+    "frame_step": 1024,
+    "window_exponent": 1.0,
+    "stft_backend": "tensorflow",
+    "model_dir": "pretrained_models",
+    "instruments": ["vocals", "accompaniment"],
+    "train_csv": null,
+    "validation_csv": null,
+    "model": {
+        "type": "unet.unet",
+        "params": {
+            "conv_activation": "ELU",
+            "deconv_activation": "ELU",
+            "pool_size":,
+            "strides":,
+            "kernel_size":,
+            "n_chunks_per_epoch": 100,
+            "batch_size": 4,
+            "learning_rate": 0.001
+        }
+    }
+}"""
+
+# Supported multi-format extensions
+SUPPORTED_EXTENSIONS = ('.mp3', '.flac', '.wav', '.m4a', '.ogg', '.wma')
 
 class VocalTaggerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("AI Vocal Detector & Tagging Tool")
+        self.root.title("AI Multi-Format Vocal Detector & Tagging Tool")
         self.root.geometry("650x450")
         self.root.minsize(550, 350)
         
         self.selected_folder = ""
-        self.mp3_files = []
+        self.audio_files = []
         self.is_processing = False
         
         # --- UI LAYOUT ---
@@ -68,21 +97,22 @@ class VocalTaggerApp:
         self.selected_folder = folder
         self.lbl_folder.config(text=folder, foreground="black")
         
-        self.mp3_files = [f for f in os.listdir(folder) if f.lower().endswith('.mp3')]
+        # Scan folder for ALL supported formats
+        self.audio_files = [f for f in os.listdir(folder) if f.lower().endswith(SUPPORTED_EXTENSIONS)]
         
         self.txt_console.config(state=tk.NORMAL)
         self.txt_console.delete('1.0', tk.END)
         self.txt_console.config(state=tk.DISABLED)
         
         self.log(f"📍 Selected Folder: {folder}")
-        self.log(f"🎵 Found {len(self.mp3_files)} MP3 files inside.\n")
+        self.log(f"🎵 Found {len(self.audio_files)} compatible audio tracks inside.\n")
         
-        if self.mp3_files:
+        if self.audio_files:
             self.btn_start.config(state=tk.NORMAL)
             self.progress['value'] = 0
         else:
             self.btn_start.config(state=tk.DISABLED)
-            self.log("⚠️ No MP3 files found in this folder.")
+            self.log("⚠️ No supported audio files (.mp3, .flac, .wav, .m4a) found in this folder.")
 
     def start_thread(self):
         self.is_processing = True
@@ -90,21 +120,47 @@ class VocalTaggerApp:
         self.btn_start.config(state=tk.DISABLED)
         threading.Thread(target=self.process_audio, daemon=True).start()
 
+    def write_universal_comment(self, file_path, tag_text):
+        """Safely writes a comment tag across different audio wrappers (MP3, FLAC, M4A, WAV)."""
+        audio = MutagenFile(file_path)
+        if audio is None:
+            raise Exception("Unsupported or corrupted metadata layout")
+            
+        # Handle different format tagging standards automatically
+        ext = os.path.splitext(file_path)[1].lower()
+        
+        if ext == '.mp3':
+            audio["COMM::'eng'"] = tag_text
+        elif ext == '.flac' or ext == '.ogg':
+            audio['comment'] = tag_text
+        elif ext == '.m4a':
+            audio['\xa9cmt'] = tag_text
+        elif ext == '.wav':
+            # WAV tags often map to standard ID3 or RIFF info fields
+            try:
+                audio.add_tags()
+            except:
+                pass
+            audio["COMM::'eng'"] = tag_text
+        else:
+            audio['comment'] = tag_text
+            
+        audio.save()
+
     def process_audio(self):
         config_path = "spleeter_local_config.json"
         try:
-            self.log("🌐 Downloading official Spleeter core structural configuration layout...")
-            # Download the unedited, official template configuration file directly into the local directory
-            url = "https://githubusercontent.com"
-            urllib.request.urlretrieve(url, config_path)
+            self.log("📝 Generating local system config file...")
+            with open(config_path, 'w') as f:
+                f.write(SPLEETER_CONFIG_STRING)
                 
             self.log("🤖 Initializing AI Separation Model (Spleeter)...")
             separator = Separator(config_path)
             self.log("⚡ Model Loaded. Starting analysis...\n")
             
-            total_files = len(self.mp3_files)
+            total_files = len(self.audio_files)
             
-            for index, file_name in enumerate(self.mp3_files, 1):
+            for index, file_name in enumerate(self.audio_files, 1):
                 file_path = os.path.join(self.selected_folder, file_name)
                 self.log(f"[{index}/{total_files}] Processing: {file_name}")
                 
@@ -118,10 +174,8 @@ class VocalTaggerApp:
                     else:
                         tag_result = "Instrumental"
                     
-                    audio = MP3(file_path, ID3=EasyID3)
-                    audio['comment'] = tag_result
-                    audio.save()
-                    
+                    # Call universal metadata writing engine
+                    self.write_universal_comment(file_path, tag_result)
                     self.log(f"   ↳ 🏷️ Tag Written: \"{tag_result}\"\n")
                 except Exception as e:
                     self.log(f"   ↳ ❌ Error processing this track: {e}\n")
@@ -130,7 +184,7 @@ class VocalTaggerApp:
                 self.progress['value'] = progress_percent
                 self.root.update_idletasks()
                 
-            self.log("🎉 SUCCESS: Processing is complete! All tracks have been tagged.")
+            self.log("🎉 SUCCESS: Processing is complete! All files have been successfully scanned.")
             messagebox.showinfo("Done!", "All files have been successfully tagged!")
             
         except Exception as global_error:
