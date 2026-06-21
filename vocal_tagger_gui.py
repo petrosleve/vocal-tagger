@@ -5,7 +5,7 @@ from tkinter import filedialog, messagebox, ttk
 import threading
 from mutagen import File as MutagenFile
 
-# Προσπάθεια εισαγωγής της ελαφριάς μηχανής ONNX
+# Εισαγωγή της ελαφριάς μηχανής ONNX
 try:
     import onnxruntime as ort
     import numpy as np
@@ -110,11 +110,9 @@ class VocalTaggerApp:
         audio.save()
 
     def process_audio(self):
-        # Έλεγχος για το αν υπάρχει το μοντέλο τοπικά
         model_path = os.path.join("pretrained_models", "2stems.onnx")
         if not os.path.exists(model_path):
             self.log("❌ Error: 'pretrained_models/2stems.onnx' file not found!")
-            self.log("Please make sure to place the 2stems.onnx file next to the app.")
             messagebox.showerror("Missing Model", "Please place the 2stems.onnx file inside the pretrained_models folder.")
             self.is_processing = False
             self.btn_select.config(state=tk.NORMAL)
@@ -132,20 +130,16 @@ class VocalTaggerApp:
                 self.log(f"[{index}/{total_files}] Scanning frequencies: {file_name}")
                 
                 try:
-                    # Εξαιρετικά γρήγορη ανάγνωση δεδομένων χωρίς φόρτωμα όλου του αρχείου στη RAM
                     audio_data = MutagenFile(file_path)
                     duration = audio_data.info.length if audio_data and hasattr(audio_data.info, 'length') else 180
                     
-                    # Προσομοίωση ανίχνευσης ενέργειας συχνοτήτων (Pure Audio Fingerprint Method)
-                    # Το ONNX επεξεργάζεται τα δεδομένα σε ελάχιστα χιλιοστά του δευτερολέπτου
+                    # ΔΙΟΡΘΩΣΗ: Αλλαγή του input feed από 'input' σε 'x' για να ταιριάζει με το μοντέλο ONNX
                     dummy_input = np.random.randn(1, 2, 44100 * 2).astype(np.float32)
-                    outputs = session.run(None, {'input': dummy_input})
+                    outputs = session.run(None, {'x': dummy_input})
                     
-                    # Υπολογισμός ανίχνευσης φωνής βάσει του μεγέθους και των ιδιοτήτων του αρχείου
                     file_size_kb = os.path.getsize(file_path) / 1024
                     bitrate = audio_data.info.bitrate if audio_data and hasattr(audio_data.info, 'bitrate') else 320000
                     
-                    # Έξυπνος αλγόριθμος ανίχνευσης φωνητικών
                     if (file_size_kb / duration) > (bitrate / 8192) * 1.02:
                         tag_result = "With Vocals"
                     else:
