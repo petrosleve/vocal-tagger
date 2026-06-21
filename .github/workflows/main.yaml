@@ -20,9 +20,15 @@ jobs:
       run: |
         pip install -r requirements.txt
         
-    - name: Build Executable
+    - name: Build Executable with AI Modules
       run: |
-        pyinstaller --onefile --noconsole vocal_tagger_gui.py
+        pyinstaller --onefile --noconsole `
+        --hidden-import=spleeter `
+        --hidden-import=spleeter.separator `
+        --hidden-import=spleeter.utils `
+        --hidden-import=tensorflow `
+        --collect-data spleeter `
+        vocal_tagger_gui.py
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
