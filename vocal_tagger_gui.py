@@ -133,8 +133,8 @@ class VocalTaggerApp:
                     audio_data = MutagenFile(file_path)
                     duration = audio_data.info.length if audio_data and hasattr(audio_data.info, 'length') else 180
                     
-                    # ΔΙΟΡΘΩΣΗ: Αλλαγή του input feed από 'input' σε 'x' για να ταιριάζει με το μοντέλο ONNX
-                    dummy_input = np.random.randn(1, 2, 44100 * 2).astype(np.float32)
+                    # ΔΙΟΡΘΩΣΗ: Προσθήκη 4ης διάστασης (1, 1, 2, 88200) για να ταιριάζει με το αναμενόμενο Rank 4 του ONNX
+                    dummy_input = np.random.randn(1, 1, 2, 44100 * 2).astype(np.float32)
                     outputs = session.run(None, {'x': dummy_input})
                     
                     file_size_kb = os.path.getsize(file_path) / 1024
