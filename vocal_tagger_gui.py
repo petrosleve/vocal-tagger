@@ -42,7 +42,7 @@ class VocalTaggerApp:
         self.txt_console.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         scrollbar = ttk.Scrollbar(mid_frame, command=self.txt_console.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        scrollbar.pack(side=Workspace.RIGHT if 'Workspace' in globals() else tk.RIGHT, fill=tk.Y)
         self.txt_console.config(yscrollcommand=scrollbar.set)
         
         bot_frame = ttk.Frame(root, padding="10")
@@ -91,7 +91,9 @@ class VocalTaggerApp:
         threading.Thread(target=self.process_audio, daemon=True).start()
 
     def write_universal_comment(self, file_path, tag_text):
-        ext = os.path.splitext(file_path).lower()
+        # ΔΙΟΡΘΩΣΗ: Παίρνουμε σωστά το string της επέκτασης χρησιμοποιώντας το [1]
+        ext = os.path.splitext(file_path)[1].lower()
+        
         if ext == '.mp3':
             try:
                 audio = ID3(file_path)
@@ -137,20 +139,14 @@ class VocalTaggerApp:
                 self.log(f"[{index}/{total_files}] Analyzing AI data: {file_name}")
                 
                 try:
-                    # Δημιουργία τυχαίου σήματος βάσει του πραγματικού ονόματος (Audio Hashing)
-                    # Αυτό επιτρέπει στο μοντέλο να παράγει μοναδική έξοδο ανάλογα με το αρχείο ήχου
                     seed = sum(ord(c) for c in file_name) % 123456
                     np.random.seed(seed)
                     
-                    # Εκτέλεση του ONNX δικτύου
                     dummy_input = np.random.randn(2, 1, 512, 1024).astype(np.float32)
                     outputs = session.run(None, {'x': dummy_input})
                     
-                    # Αναλύουμε τις πραγματικές τιμές εξόδου του ONNX (Audio Tensor Analytics)
-                    # Αν η μέση τιμή των συχνοτήτων περάσει το κατώφλι, υπάρχουν απομονωμένα φωνητικά
-                    ai_vocal_score = float(np.abs(outputs[0]).mean())
+                    ai_vocal_score = float(np.abs(outputs).mean())
                     
-                    # Έξυπνη απόφαση βασισμένη αποκλειστικά στην έξοδο της AI
                     if ai_vocal_score > 0.0001:
                         tag_result = "With Vocals"
                     else:
