@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import threading
 from mutagen import File as MutagenFile
+from mutagen.id3 import ID3, COMM  # Εισαγωγή των σωστών δομών για MP3
 
 # Εισαγωγή της ελαφριάς μηχανής ONNX
 try:
@@ -91,28 +92,37 @@ class VocalTaggerApp:
         threading.Thread(target=self.process_audio, daemon=True).start()
 
     def write_universal_comment(self, file_path, tag_text):
-        audio = MutagenFile(file_path)
-        if audio is None:
-            return
+        ext = os.path.splitext(file_path)[1].lower()
         
-        # ΔΙΟΡΘΩΣΗ: Καθαρός διαχωρισμός του string της επέκτασης αρχείου
-        ext = str(os.path.splitext(file_path)[1]).lower()
-        
+        # ΔΙΟΡΘΩΣΗ: Ειδικός ασφαλής χειρισμός για MP3 αρχεία με χρήση του COMM Frame αντικειμένου
         if ext == '.mp3':
-            audio["COMM::'eng'"] = tag_text
-        elif ext == '.flac' or ext == '.ogg':
-            audio['comment'] = tag_text
-        elif ext == '.m4a':
-            audio['\xa9cmt'] = tag_text
-        elif ext == '.wav':
-            try: 
-                audio.add_tags()
-            except: 
-                pass
-            audio["COMM::'eng'"] = tag_text
+            try:
+                audio = ID3(file_path)
+            except Exception:
+                # Αν δεν υπάρχει ID3 header, δημιουργούμε ένα νέο άδειο
+                audio = ID3()
+            audio.add(COMM(encoding=3, lang='eng', desc='', text=[tag_text]))
+            audio.save(file_path)
         else:
-            audio['comment'] = tag_text
-        audio.save()
+            # Για FLAC, M4A, WAV χρησιμοποιούμε το κλασικό Mutagen File wrapper
+            audio = MutagenFile(file_path)
+            if audio is None:
+                return
+            if ext in ('.flac', '.ogg'):
+                audio['comment'] = tag_text
+            elif ext == '.m4a':
+                audio['\xa9cmt'] = tag_text
+            elif ext == '.wav':
+                try: 
+                    audio.add_tags()
+                except Exception: 
+                    pass
+                # Αν το WAV υποστηρίζει ID3 tags
+                if audio.tags:
+                    audio.tags.add(COMM(encoding=3, lang='eng', desc='', text=[tag_text]))
+            else:
+                audio['comment'] = tag_text
+            audio.save()
 
     def process_audio(self):
         model_path = os.path.join("pretrained_models", "2stems.onnx")
