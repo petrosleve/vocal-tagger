@@ -8,34 +8,6 @@ import threading
 from spleeter.separator import Separator
 from mutagen import File as MutagenFile
 
-# Πλήρης χειροκίνητη δομή ρυθμίσεων (Python Dict) για την αποφυγή του σφάλματος εύρεσης αρχείου ενσωμάτωσης
-NATIVE_2STEMS_CONFIG = {
-    "mix_name": "mix",
-    "instrumentals_name": "accompaniment",
-    "sample_rate": 44100,
-    "frame_length": 4096,
-    "frame_step": 1024,
-    "window_exponent": 1.0,
-    "stft_backend": "tensorflow",
-    "model_dir": "pretrained_models",
-    "instruments": ["vocals", "accompaniment"],
-    "train_csv": None,
-    "validation_csv": None,
-    "model": {
-        "type": "unet.unet",
-        "params": {
-            "conv_activation": "ELU",
-            "deconv_activation": "ELU",
-            "pool_size":,
-            "strides":,
-            "kernel_size":,
-            "n_chunks_per_epoch": 100,
-            "batch_size": 4,
-            "learning_rate": 0.001
-        }
-    }
-}
-
 # Υποστηριζόμενοι τύποι αρχείων ήχου
 SUPPORTED_EXTENSIONS = ('.mp3', '.flac', '.wav', '.m4a', '.ogg', '.wma')
 
@@ -145,8 +117,14 @@ class VocalTaggerApp:
     def process_audio(self):
         try:
             self.log("🤖 Initializing AI Separation Model...")
-            # Περνάμε το αντικείμενο ρυθμίσεων απευθείας, αποφεύγοντας τα strings και τα σφάλματα JSON
-            separator = Separator(NATIVE_2STEMS_CONFIG)
+            
+            # Βρίσκουμε τη φυσική διαδρομή της Spleeter μέσα στην εγκατάσταση της Python
+            import spleeter
+            spleeter_dir = os.path.dirname(spleeter.__file__)
+            native_config_path = os.path.join(spleeter_dir, 'resources', '2stems.json')
+            
+            # Φορτώνουμε απευθείας το επίσημο αρχείο ρυθμίσεων χωρίς ενδιάμεσα strings
+            separator = Separator(native_config_path)
             self.log("⚡ Model Loaded. Starting analysis...\n")
             
             total_files = len(self.audio_files)
