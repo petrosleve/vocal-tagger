@@ -4,11 +4,39 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import threading
 
-# Import the core audio processing tools
+# Εισαγωγή των εργαλείων επεξεργασίας ήχου
 from spleeter.separator import Separator
 from mutagen import File as MutagenFile
 
-# Supported multi-format extensions
+# Πλήρης χειροκίνητη δομή ρυθμίσεων (Python Dict) για την αποφυγή του σφάλματος εύρεσης αρχείου ενσωμάτωσης
+NATIVE_2STEMS_CONFIG = {
+    "mix_name": "mix",
+    "instrumentals_name": "accompaniment",
+    "sample_rate": 44100,
+    "frame_length": 4096,
+    "frame_step": 1024,
+    "window_exponent": 1.0,
+    "stft_backend": "tensorflow",
+    "model_dir": "pretrained_models",
+    "instruments": ["vocals", "accompaniment"],
+    "train_csv": None,
+    "validation_csv": None,
+    "model": {
+        "type": "unet.unet",
+        "params": {
+            "conv_activation": "ELU",
+            "deconv_activation": "ELU",
+            "pool_size":,
+            "strides":,
+            "kernel_size":,
+            "n_chunks_per_epoch": 100,
+            "batch_size": 4,
+            "learning_rate": 0.001
+        }
+    }
+}
+
+# Υποστηριζόμενοι τύποι αρχείων ήχου
 SUPPORTED_EXTENSIONS = ('.mp3', '.flac', '.wav', '.m4a', '.ogg', '.wma')
 
 class VocalTaggerApp:
@@ -117,8 +145,8 @@ class VocalTaggerApp:
     def process_audio(self):
         try:
             self.log("🤖 Initializing AI Separation Model...")
-            # Using Spleeter's native internal config name identifier directly
-            separator = Separator('spleeter:2stems')
+            # Περνάμε το αντικείμενο ρυθμίσεων απευθείας, αποφεύγοντας τα strings και τα σφάλματα JSON
+            separator = Separator(NATIVE_2STEMS_CONFIG)
             self.log("⚡ Model Loaded. Starting analysis...\n")
             
             total_files = len(self.audio_files)
